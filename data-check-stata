@@ -1,0 +1,311 @@
+****unlocked data check**************************
+
+***n of participants by group, including not randomised ones******
+tab group, m
+
+***interested in randomised participants only*******
+bysort group: sum a_pre_reported_age, d
+
+tab group target_behaviour_label
+
+by group: sum a_reported_age, d
+
+gen temp = 1 if a_pre_reported_age != a_reported_age
+by group: sum temp1
+***all randomised participants provided consistent answer*********
+drop temp
+
+tab group a_sex
+
+tab group a_smoked_past_month
+
+tab group a_drink_12_months
+
+sum a_audit_1_1-a_audit_1_10 if !mi(group)
+
+tab target_behaviour_label a_smoked_past_month if !mi(group)
+tab target_behaviour_label a_drink_12_months if !mi(group)
+
+local time "baseline month_3 month_6 tb_records"
+foreach t of local time {
+	tab group `t'_completed
+}
+
+tab a_employment if !mi(group), m
+
+****************************************************************************************
+********Methods to stop smoking/drinking in the last 3 months******************************
+local time "a b c"
+foreach t of local time {
+	tab `t'_methods_stop_smoking if target_behaviour_label == 1 | target_behaviour_label == 3
+}
+
+tab a_methods_stop_smoking baseline_completed, m
+tab b_methods_stop_smoking month_3_completed, m
+tab c_methods_stop_smoking month_6_completed, m
+
+****all other y/n variables coded 0=no 1=yes, only these 2 coded 1=no 2=yes********
+recode b_methods_stop_smoking 1=0 2=1
+recode c_methods_stop_smoking 1=0 2=1
+local time "a b c"
+foreach t of local time {
+	sum `t'_smoking_counselling-`t'_methods_stop_smoking_r if `t'_methods_stop_smoking == 1
+}
+*****change `t'_methods_stop_smoking == 0 to check if they are all blank***********
+
+local time "a b c"
+foreach t of local time {
+	tab `t'_methods_stop_drinking if target_behaviour_label == 1 | target_behaviour_label == 2
+}
+
+tab a_methods_stop_drinking baseline_completed, m
+tab b_methods_stop_drinking month_3_completed, m
+tab c_methods_stop_drinking month_6_completed, m
+
+local time "a b c"
+foreach t of local time {
+	dis "used methods to stopped drinking but did not give description"
+	count if `t'_drinking_describe != "" & `t'_methods_stop_drinking == 1
+	sum `t'_spent_on_alcohol if `t'_methods_stop_drinking == 1
+	dis "used free methods"
+	count if `t'_spent_on_alcohol == 0 & `t'_methods_stop_drinking == 1
+}
+*****change `t'_methods_stop_drinking == 0 to check if they are all blank***********
+
+
+*********************************************************************************
+*******TB treatment healthcare visits*******************************************
+rename a_visited_facility_tb a_visited_facility_for_tb
+*****variable name inconsistent**************************
+sum a_visited_facility_for_tb-a_hospital_overnight_nr if baseline_completed == "Yes"
+sum b_visited_facility_for_tb-b_hospital_overnight_nr if month_3_completed == "Yes"
+sum c_visited_facility_for_tb-c_hospital_overnight_nr if month_6_completed == "Yes"
+
+local time "a b c"
+foreach t of local time {
+	tab `t'_visited_facility_for_tb `t'_visit_public_clinic if !mi(group), m
+	sum `t'_visit_public_clinic_times if `t'_visit_public_clinic == 1, d
+	tab `t'_visit_public_clinic_nurse `t'_visit_public_clinic_doctor if `t'_visit_public_clinic == 1
+}
+
+rename a_clinic_hours_consult a_clinic_total_hours_consult
+*****variable name inconsistent**************************
+local time "a b c"
+foreach t of local time {
+	sum `t'_visit_public_clinic_rands-`t'_clinic_time_doctor if `t'_visit_public_clinic == 1
+	dis "visited public clinic but total journey time was zero"
+	count if `t'_clinic_time_travel == 0 & `t'_visit_public_clinic == 1
+	dis "time from departing from home to back < total consultation time"
+	list id `t'_clinic_time_travel `t'_clinic_total_hours_consult if `t'_clinic_time_travel < `t'_clinic_total_hours_consult & !mi(`t'_clinic_total_hours_consult)
+	dis "visited public clinic but consultation time was zero"
+	count if `t'_clinic_total_hours_consult == 0 & `t'_visit_public_clinic == 1
+	dis "total consultation time < doctor meeting time"
+	list id `t'_clinic_total_hours_consult `t'_clinic_time_doctor if `t'_clinic_total_hours_consult < `t'_clinic_time_doctor/60 & !mi(`t'_clinic_time_doctor)
+	dis "visited public clinic but doctor meeting time was zero"
+	count if `t'_clinic_time_doctor == 0 & `t'_visit_public_clinic == 1
+}
+
+local time "a b c"
+foreach t of local time {
+	tab `t'_visited_facility_for_tb `t'_visit_public_hospital if !mi(group), m
+	sum `t'_visit_public_hospital_times if `t'_visit_public_hospital == 1, d
+	tab `t'_visit_public_hospital_nurse `t'_visit_public_hospital_doctor if `t'_visit_public_hospital == 1
+	sum `t'_visit_public_hospital_rands if `t'_visit_public_hospital == 1
+}
+
+rename a_hospital_hours_consult a_hospital_total_hours_consult
+*****variable name inconsistent**************************
+local time "a b c"
+foreach t of local time {
+	dis "visited public hospital but total journey time was zero"
+	count if `t'_hospital_time_travel == 0 & `t'_visit_public_hospital == 1
+	dis "time from departing from home to back < total consultation time"
+	list id `t'_hospital_time_travel `t'_hospital_total_hours_consult if `t'_hospital_time_travel < `t'_hospital_total_hours_consult & !mi(`t'_hospital_total_hours_consult)
+	dis "visited public hospital but consultation time was zero"
+	count if `t'_hospital_total_hours_consult == 0 & `t'_visit_public_hospital == 1
+	dis "total consultation time < doctor meeting time"
+	list id `t'_hospital_total_hours_consult `t'_hospital_time_doctor if `t'_hospital_total_hours_consult < `t'_hospital_time_doctor/60 & !mi(`t'_hospital_time_doctor)
+	dis "visited public hospital but doctor meeting time was zero"
+	count if `t'_hospital_time_doctor == 0 & `t'_visit_public_hospital == 1
+}
+
+local time "a b c"
+foreach t of local time {
+	tab `t'_visit_public_hospital `t'_hospital_overnight if `t'_visited_facility_for_tb == 1, m
+	sum `t'_hospital_overnight_nr if `t'_hospital_overnight == 1, d
+	list id `t'_hospital_time_travel `t'_hospital_total_hours_consult `t'_hospital_time_doctor `t'_hospital_overnight_nr if `t'_hospital_overnight == 1
+}
+
+local time "a b c"
+foreach t of local time {
+	dis "time point `t'"
+	list id `t'_clinic_time_doctor if `t'_clinic_time_doctor < 5
+	list id `t'_hospital_time_doctor if `t'_hospital_time_doctor < 5
+}
+
+
+*************************************************************************************
+*************EQ-5D*************************************************************
+local time "a b c"
+foreach t of local time {
+	sum `t'_mobility-`t'_state_of_health if !mi(group)
+}
+
+****coding 0=no pro, 1=some, 2=severe, inconsistent with common use*************
+local time "a b c"
+foreach t of local time {
+	foreach v of varlist `t'_mobility-`t'_anxiety_depression {
+		recode `v' 2=3 1=2 0=1
+	}
+	list id `t'_state_of_health if `t'_state_of_health < 10
+}
+
+
+*********************************************************************************
+****************TB medicines & TB records***************************************
+local time "b c"
+foreach t of local time {
+	tab group `t'_still_taking_treatment_tb, m
+}
+
+local time "b c"
+foreach t of local time {
+	sum `t'_rhze-`t'_rh_4_days_ago if `t'_still_taking_treatment_tb == 1
+}
+***********99999999 = unknown? or n/a?*************************************
+
+local time "b c"
+foreach t of local time {
+	tab `t'_rhze `t'_rh if `t'_still_taking_treatment_tb == 1
+	dis "still taking treatment but not on any medication"
+	list id if `t'_rhze == 0 & `t'_rh == 0 & `t'_still_taking_treatment_tb == 1
+}
+
+tab group tb_records_completed, m
+tab tb_record_problems
+tab select_record_problem
+tab a_patient_category
+list a_patient_category_other if a_patient_category == 5
+sum a_nr_pre_treat_results
+
+tab treatment_regimen if !mi(group), m
+
+sum a_ip_rhze_1-a_ip_s_1 if !mi(group), d
+
+sum b_month_1_doses_missed-c_month_6_doses_missed if !mi(group), d
+
+sum b_nr_results_month2 b_nr_results_month3 c_nr_results_month6
+
+tab treatment_outcome group, col
+tab reasons_unknown
+list reasons_unknown_other if reasons_unknown == 0
+
+
+
+********************************************************************************
+***************HIV treatment & HIV records*************************************
+tab group a_hiv_status, m
+
+foreach t in b c {
+	tab a_hiv_status `t'_taking_art, m
+}
+
+foreach t in b c {
+	sum `t'_nr_art_medications if `t'_taking_art == 1
+}
+
+foreach t in b c {
+	egen `t'_temp = rowtotal(`t'_atroiza `t'_dumiva `t'_tenemine `t'_zovilam `t'_kavimun `t'_ricovir `t'_zidomat_100_300 `t'_lazena `t'_efrin `t'_efamat `t'_acriptaz `t'_art_not_on_chart `t'_dont_know_art), m
+	dis "taking art, n of identified medications different from reported n of types"
+	list id `t'_temp `t'_nr_art_medications if `t'_temp != `t'_nr_art_medications & `t'_taking_art == 1
+	dis "not taking art/unkown, n of identified medications showed some use"
+	list id `t'_temp `t'_nr_art_medications if `t'_temp != `t'_nr_art_medications & `t'_taking_art != 1
+	drop `t'_temp
+}
+
+******variable names inconsistent**************************
+rename b_zidomate_100_300 b_zidomat_100_300
+foreach t in b c {
+	rename `t'_zidomat_100_300 `t'_zidomat
+	rename `t'_dont_know_art `t'_art_dont_know
+	dis "time point `t'"
+	foreach v of varlist `t'_atroiza `t'_dumiva `t'_tenemine `t'_zovilam `t'_kavimun `t'_ricovir `t'_zidomat `t'_lazena `t'_efrin `t'_efamat `t'_acriptaz `t'_art_not_on_chart `t'_art_dont_know {
+		sum `v'_prescribed if `v' == 1
+	}
+	rename `t'_zidomat `t'_zidomat_100_300
+	rename `t'_art_dont_know `t'_dont_know_art
+}
+*****Missing c_acriptaz_prescribed
+
+tab a_hiv_status a_cotrimoxazole if !mi(group), m
+tab a_hiv_status a_art if !mi(group), m
+
+
+********************************************************************************
+******************comorbidity***********************************************
+tab group a_hypertension, m
+list a_hypertension-a_hypertension_med_4 if a_hypertension_med_1 != ""
+count if a_hypertension_med_1 != ""
+gen a_hypertension_med = 0 if a_hypertension_med_1 == "nothing" | a_hypertension_med_1 == "Nothing" | a_hypertension_med_1 == "no"
+replace a_hypertension_med = 1 if a_hypertension_med_1 != "" & a_hypertension_med != 0
+
+tab a_hypertension a_hypertension_med
+
+tab group a_diabetes, m
+list a_diabetes-a_diabetes_med_4 if a_diabetes_med_1 != ""
+count if a_diabetes_med_1 != ""
+gen a_diabetes_med = 0 if a_diabetes_med_1 == "nothing" | a_diabetes_med_1 == "Nothing" | a_diabetes_med_1 == "no" | a_diabetes_med_1 == "0"
+replace a_diabetes_med = 1 if a_diabetes_med_1 != "" & a_diabetes_med != 0
+
+tab a_diabetes a_diabetes_med
+
+tab group a_epilepsy, m
+list a_epilepsy-a_epilepsy_med_4 if a_epilepsy_med_1 != ""
+count if a_epilepsy_med_1 != ""
+gen a_epilepsy_med = 0 if a_epilepsy_med_1 == "nothing" | a_epilepsy_med_1 == "Nothing"
+replace a_epilepsy_med = 1 if a_epilepsy_med_1 != "" & a_epilepsy_med != 0
+
+tab a_epilepsy a_epilepsy_med
+
+tab group a_mental_illness, m
+list a_mental_illness-a_mental_illness_med_4 if a_mental_illness_med_1 != ""
+count if a_mental_illness_med_1 != ""
+gen a_mental_illness_med = 0 if a_mental_illness_med_1 == "nothing"
+replace a_mental_illness_med = 1 if a_mental_illness_med_1 != "" & a_mental_illness_med != 0
+
+tab a_mental_illness a_mental_illness_med
+
+tab group a_liver_disease, m
+list a_liver_disease-a_liver_disease_med_4 if a_liver_disease_med_1 != ""
+count if a_liver_disease_med_1 != ""
+gen a_liver_disease_med = 0 if a_liver_disease_med_1 == "nothing" | a_liver_disease_med_1 == "Nothing"
+replace a_liver_disease_med = 1 if a_liver_disease_med_1 != "" & a_liver_disease_med != 0
+
+tab a_liver_disease a_liver_disease_med
+
+tab group a_renal_insufficiency, m
+list a_renal_insufficiency-a_renal_insufficiency_med_4 if a_renal_insufficiency_med_1 != ""
+count if a_renal_insufficiency_med_1 != ""
+gen a_renal_insufficiency_med = 0 if a_renal_insufficiency_med_1 == "nothing"
+replace a_renal_insufficiency_med = 1 if a_renal_insufficiency_med_1 != "" & a_renal_insufficiency_med != 0
+
+tab a_renal_insufficiency a_renal_insufficiency_med
+
+tab group a_allergies, m
+list a_allergies-a_allergies_4 if a_allergies_1 != ""
+list a_allergies_med_1-a_allergies_med_4 if a_allergies_med_1 != ""
+count if a_allergies_med_1 != ""
+gen a_allergies_med = 0 if a_allergies_med_1 == "nothing" | a_allergies_med_1 == "Nothing"
+replace a_allergies_med = 1 if a_allergies_med_1 != "" & a_allergies_med != 0
+
+tab a_allergies a_allergies_med
+
+tab group a_co_morbid_other, m
+list a_co_morbid_other-a_co_morbid_other_4 if a_co_morbid_other_1 != ""
+list a_co_morbid_other_med_1-a_co_morbid_other_med_4 if a_co_morbid_other_med_1 != ""
+gen a_co_morbid_other_med = 0 if a_co_morbid_other_med_1 == "nothing"
+replace a_co_morbid_other_med = 1 if a_co_morbid_other_med_1 != "" & a_co_morbid_other_med != 0
+
+tab a_co_morbid_other a_co_morbid_other_med
+
+
